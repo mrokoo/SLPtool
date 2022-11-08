@@ -17,9 +17,11 @@ enum Grade {
 interface ITable {
     from: number;
     to: number;
-    volume?: number;
+    score: number | string;
     grade: Grade;
 }
+
+
 export default class Plant {
     private facilities: Facility[] = []
     private pairs: IPair[] = []
@@ -72,8 +74,8 @@ export default class Plant {
 
         return table
     }
-    
-    LogisticsGrade() {
+
+    LogisticsGrade(): ITable[] {
         const table = this.fromToTable()
         let ctable: ITable[] = []
         for (let i = 0; i < table.length; i++) {
@@ -81,49 +83,27 @@ export default class Plant {
                 ctable.push({
                     from: i,
                     to: j,
-                    volume: table[i][j] += table[j][i],
-                    grade: Grade.U
+                    score: table[i][j] += table[j][i],
+                    grade: Grade.U // 默认为U级
                 })
-            }
-        }
-        ctable = _.orderBy(ctable, ['volume', 'from', 'to'], ['desc', 'desc', 'desc'])
-
-        // 分层算法，还要改。
-        const ratio = [0.1, 0.2, 0.3, 0.4].map((v) => v * this.facAmount)
-        for (let i = 0; i < this.facAmount * (this.facAmount) / 2; i++) {
-            if (i + 1 <= ratio[0]) {
-                ctable[i].grade = Grade.A
-            } else if (i + 1 <= ratio[1]) {
-                ctable[i].grade = Grade.E
-            } else if (i + 1 <= ratio[2]) {
-                ctable[i].grade = Grade.I
-            } else if (i + 1 <= ratio[3]) {
-                ctable[i].grade = Grade.O
-            } else {
-                continue
             }
         }
         return ctable
     }
     NonLogisticsGrade(): ITable[] {
-        // 手动生成
-        return [
-            {
-                from: 0,
-                to: 1,
-                grade: Grade.E
-            },
-            {
-                from: 0,
-                to: 2,
-                grade: Grade.O
-            },
-            {
-                from: 1,
-                to: 2,
-                grade: Grade.U
+        const table = this.fromToTable()
+        let ctable: ITable[] = []
+        for (let i = 0; i < table.length; i++) {
+            for (let j = i + 1; j < table.length; j++) {
+                ctable.push({
+                    from: i,
+                    to: j,
+                    score: 0,
+                    grade: Grade.U // 默认为U级
+                })
             }
-        ]
+        }
+        return ctable
     }
 
 
@@ -134,21 +114,20 @@ export default class Plant {
         this._importance = v
     }
 
-    generalGrade(): ITable[] {
-        const log = this.LogisticsGrade()
-        const nlog = this.NonLogisticsGrade()
-        return log.map((v => {
-            for (const e of nlog) {
-                if (v.from == e.from && v.to == e.to) {
-                    v.volume = v.grade * this.importance[0] + e.grade * this.importance[1]
-                }
-                continue
+    generalGrade(log: ITable[], nlog: ITable[]): ITable[] {
+        // 同样返回一个ITable数组，然后手动为其分级。
+        return log.map( (v, i) => {
+            return {
+                ...v,
+                score: log[i].grade * this.importance[0] + nlog[i].grade * this.importance[1],
+                grade: Grade.U  
             }
-
-            return v
-        }))
+        })
 
     }
 }
+
+
+
 
 
